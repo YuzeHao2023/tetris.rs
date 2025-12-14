@@ -23,7 +23,7 @@ A small Tetris clone written in Rust using piston_window.
 
 ## 简介 / Summary
 这是一个用 Rust 编写、基于 piston_window 的俄罗斯方块实现。代码简洁、依赖少，适合作为学习 Rust 图形应用或小型游戏工程的示例。  
-This is a Tetris clone in Rust using the piston_window crate. The codebase is small and dependency-light, making it a good example for learning Rust GUI/game programming.
+This is a Tetris clone written in Rust using the piston_window crate. The codebase is small and dependency-light, making it a good example for learning Rust GUI/game programming and simple game architecture.
 
 ---
 
@@ -34,6 +34,12 @@ This is a Tetris clone in Rust using the piston_window crate. The codebase is sm
 - 可复用的渲染与游戏状态机（Falling / Flashing / GameOver）。  
 - 支持键盘控制与重启。  
 
+- Written entirely in Rust (depends on piston_window and rand).  
+- Simple block rendering, rotation, falling, and line-clear visual effects (flashing).  
+- A compact Board data structure supporting transforms (rotate, mirror, translate) and merge/collision checks.  
+- Reusable rendering and a small game state machine (Falling / Flashing / GameOver).  
+- Keyboard controls and restart support.
+
 ---
 
 ## 要求 / Requirements
@@ -41,7 +47,13 @@ This is a Tetris clone in Rust using the piston_window crate. The codebase is sm
   - 安装： https://rustup.rs  
 - Cargo（随 rustup 提供）  
 - piston_window 与 rand 作为 crate 依赖（已在 Cargo.toml 中指定）  
-- 在某些系统上运行图形窗口需要系统级库（例如 X11 / Wayland / macOS 的图形库）。如果遇到窗口创建或依赖构建错误，请参考 piston_window 文档或相关系统包管理器。  
+- 在某些系统上运行图形窗口需要系统级库（例如 X11 / Wayland / macOS 的图形库）。如果遇到窗口创建或依赖构建错误，请参考 piston_window 文档或相关系统包管理器安装指引。
+
+- Rust (stable or newer recommended)  
+  - Install via: https://rustup.rs  
+- Cargo (bundled with rustup)  
+- The project depends on piston_window and rand (declared in Cargo.toml)  
+- On some systems you may need system-level graphics libraries (for example, X11/Wayland, OpenGL, or macOS graphics frameworks). If you run into window creation or build/link errors, consult piston_window's documentation or your platform's package manager for required development libraries.
 
 ---
 
@@ -55,14 +67,15 @@ cd tetris.rs
 
 2. 使用 Rust toolchain 构建并运行 / Build and run:
 ```bash
-# 开发模式（慢但支持调试）
+# 开发模式（较慢但支持调试信息）
 cargo run
 
 # 或者发布模式（更快）
 cargo run --release
 ```
 
-3. 如果遇到链接或构建错误，请确保系统安装了基础 X/Window/GL 依赖。可查看 piston_window 的 README 以获取平台特定依赖信息。
+3. 如果遇到链接或构建错误，请确保系统安装了基础 X/Window/GL 依赖。可查看 piston_window 的 README 以获取平台特定依赖信息。  
+If you encounter linking or build errors, ensure your system has the required X/Window/OpenGL libraries installed. Refer to the piston_window README for platform-specific dependency instructions.
 
 ---
 
@@ -76,7 +89,15 @@ cargo run --release
 - ESC: 退出窗口（由 piston_window 的 exit_on_esc 处理）
 
 说明：键映射使用 piston_window 的 Button/Key 枚举。  
-Note: key mapping uses piston_window's Button/Key enums.
+- Left Arrow: move the piece left (Key::Left)  
+- Right Arrow: move the piece right (Key::Right)  
+- Down Arrow: soft drop / accelerate down (Key::Down)  
+- Up Arrow: rotate clockwise (Key::Up)  
+- Numpad 5: rotate counter-clockwise (Key::NumPad5)  
+- Enter: restart the game when Game Over (Key::Return)  
+- ESC: exit the window (handled by piston_window's exit_on_esc)
+
+Note: key mappings use piston_window's Button/Key enums.
 
 ---
 
@@ -91,6 +112,17 @@ Note: key mapping uses piston_window's Button/Key enums.
 - Metrics — 显示与方块大小配置（board_x, board_y, block_pixels）。  
 - State — 游戏状态机: Falling(Board), Flashing(stage, last_switch, lines), GameOver。  
 - Game — 核心逻辑：管理 board、当前下落图形、旋转、移动、消行与渲染。
+
+- main.rs — program entrypoint and core implementation (rendering, event loop, game logic).  
+- Cargo.toml — dependency declarations (piston_window, rand, etc.).  
+- img/ — directory for README demo gif (put the demo gif here).  
+- Other resources/configs (if any) are present in the repository.
+
+Core types and roles (high-level):
+- Board — container for block coordinates and colors (internally a HashMap<(i8,i8), Color>).  
+- Metrics — display and block size configuration (board_x, board_y, block_pixels).  
+- State — the game state machine: Falling(Board), Flashing(stage, last_switch, lines), GameOver.  
+- Game — core logic: manages the board, current falling piece, rotations, movement, line clears, and rendering.
 
 ---
 
@@ -121,6 +153,21 @@ self.possible_pieces: vec![
 ]
 ```
 
+- Board transformation utilities:
+  - modified / modified_filter: move or filter coordinates according to a mapping function.  
+  - transposed / mirrored_y / rotated / rotated_counter: used to rotate and mirror piece matrices.  
+  - negative_shift / shifted: normalize block coordinates (remove negative positions) and place them at a target offset.  
+  - merged: merge two Boards (returns None if overlap occurs).  
+  - contained: check whether all blocks of a Board are within given width/height bounds.  
+  - whole_lines: compute indices of fully occupied rows.  
+  - kill_line: remove a row and shift blocks above down (used for clearing lines).
+
+- Main Game flow:
+  - new_falling: choose a next piece at random and apply random rotations; check placement legality before spawning (if it cannot be merged, trigger GameOver).  
+  - progress: advance falling by elapsed time, handle flashing animations, and perform actual line removals when flashing finishes.  
+  - move_falling: handle movement logic (collision and boundary checks); when the piece cannot fall further, lock it into the board and check for completed lines.  
+  - rotate: rotate using matrix transforms, normalize negative shifts, and try several wall-kick offsets to allow basic wall kicks.
+
 ---
 
 ## 自定义 / Customization
@@ -136,6 +183,18 @@ if self.time_since_fall.elapsed() <= Duration::from_millis(400) {
 }
 ```
 
+- Change screen/board size by editing Metrics (`block_pixels`, `board_x`, `board_y`) in main.rs.  
+- Add new pieces by appending new Board generators to the `possible_pieces` vector (pay attention to coordinates and color).  
+- Adjust fall speed by changing `Duration::from_millis(700)` inside Game::progress.  
+- Modify colors or rendering style by editing the color array or border logic in Board::render.
+
+Example: shorten fall interval to 400ms for a faster game:
+```rust
+if self.time_since_fall.elapsed() <= Duration::from_millis(400) {
+    return;
+}
+```
+
 ---
 
 ## 常见问题 / FAQ & Troubleshooting
@@ -144,9 +203,21 @@ if self.time_since_fall.elapsed() <= Duration::from_millis(400) {
   - 确保安装了 Rust toolchain（rustup、cargo）。  
   - 在 Linux 上，若出现链接错误，可能需要安装系统级的图形依赖（如 X11 开发库、OpenGL、libxcb 等），具体依赖请参照 piston_window 的官方说明。  
 - 游戏一开始直接 GameOver：
-  - 这意味着新生成的方块在初始位置与现有固定方块冲突。清除 board 或重启游戏可以恢复；也可能需要调整 `new_falling` 中的 spawn 位置或 `shift` 初始值。  
+  - 这意味着新生成的方块在初始位置与现有固定方块冲突。清除 board 或重启游戏可以恢复；也可能需要调整 `new_falling` 中的 spawn 位置或 `shift` 初始值以避免冲突。  
 - 如何调试或打印信息？
-  - 在适当位置加入 println!() 调试输出，或在 IDE 中使用断点调试（例如使用 CLion / VSCode + rust-analyzer）。
+  - 在适当位置加入 println!() 调试输出，或在 IDE 中使用断点调试（例如使用 CLion / VSCode + rust-analyzer）。  
+- 运行卡顿或帧率低：
+  - 在 release 模式下构建（cargo run --release）通常会明显提升性能。也可检查绘制逻辑是否有不必要的分配或复杂计算。
+
+- Window won't open or compilation fails:
+  - Make sure Rust toolchain is installed (rustup, cargo).  
+  - On Linux, linking errors often indicate missing system graphics/development libraries (X11, OpenGL, libxcb, etc.). See piston_window's documentation for platform-specific dependencies.  
+- Game immediately shows GameOver on start:
+  - This means the newly spawned piece collides with existing locked blocks at spawn position. Clearing the board or restarting will fix it; otherwise consider adjusting spawn offset or initial shift in `new_falling`.  
+- How to debug or print information:
+  - Insert println!() at relevant places or use an IDE debugger (CLion, VSCode + rust-analyzer).  
+- Poor performance or low FPS:
+  - Building in release mode (cargo run --release) usually improves performance significantly. Also check rendering paths for unnecessary allocations or heavy computations.
 
 ---
 
@@ -160,6 +231,16 @@ if self.time_since_fall.elapsed() <= Duration::from_millis(400) {
 - 保持代码风格一致（遵循 rustfmt）  
 - 写明平台与测试步骤（macOS / Linux / Windows）  
 - 对大型改动请先创建 Issue 讨论设计
+
+Contributions are welcome. Typical workflow:
+- Fork the repository and create a feature branch.  
+- Make clear commits describing the changes.  
+- Open a Pull Request describing how to test and the expected behavior.
+
+Contribution tips:
+- Keep code style consistent (run rustfmt).  
+- State platform and testing steps (macOS / Linux / Windows).  
+- For large design changes, open an Issue first to discuss.
 
 ---
 
@@ -182,3 +263,4 @@ See the LICENSE file in this repository for license details.
     <img src="https://github.com/dvlan26.png" width="100" height="100" style="border-radius: 50%; margin: 0 10px; object-fit: cover;" alt="dvlan26" />
   </a>  
 </div>
+
