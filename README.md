@@ -19,7 +19,7 @@ A small Tetris clone written in Rust using piston_window.
 - [贡献 / Contributing](#贡献--contributing)  
 - [许可 / License](#许可--license)
 
----
+--- 
 
 ## 简介 / Summary
 这是一个用 Rust 编写、基于 piston_window 的俄罗斯方块实现。代码简洁、依赖少，适合作为学习 Rust 图形应用或小型游戏工程的示例。  
